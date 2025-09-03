@@ -18,7 +18,6 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 
@@ -31,18 +30,15 @@ import java.util.function.Function;
 
 import static net.minecraftforge.common.util.Constants.BlockFlags.RERENDER_MAIN_THREAD;
 
-public class TileNetworkHub extends TileMeBase implements ITickable {
+public class TileNetworkHub extends TileMeBase {
     private boolean isHead = false;
     private UUID networkUuid = null;
     private boolean isConnected = false;
     private double power = Configurations.GENERAL_CONFIG.powerBase;
-    private IGridConnection connection = null;
-    private int tickCounter = 0;
     private Integer surplusChannels;
-    private long lastWorldTime = -1;
+    private IGridConnection connection = null;
 
     public TileNetworkHub() {
-        super();
         this.proxy.setFlags(GridFlags.DENSE_CAPACITY);
     }
 
@@ -57,21 +53,7 @@ public class TileNetworkHub extends TileMeBase implements ITickable {
         return AECableType.DENSE_SMART;
     }
 
-    @Override
-    public void update() {
-        if (this.world.isRemote) return;
-        long totalWorldTime = this.world.getTotalWorldTime();
-        if (this.lastWorldTime != totalWorldTime) {
-            this.lastWorldTime = totalWorldTime;
-            this.tickCounter = (this.tickCounter + 1) % 20;
-            if (this.tickCounter % 20 == 0) {
-                this.onTick();
-                this.sync();
-            }
-        }
-    }
-
-    private void onTick(){
+    protected void onTick(){
         if (this.networkUuid != null) {
             DataStorage storage = DataStorage.get(this.world);
             Network network = storage.getNetwork(this.networkUuid);
@@ -116,21 +98,20 @@ public class TileNetworkHub extends TileMeBase implements ITickable {
         return tag;
     }
 
-
     @Override
     public NBTTagCompound getSyncData(NBTTagCompound tag) {
-        tag.setBoolean("isHead", this.isHead);
         if (this.networkUuid != null) tag.setUniqueId("networkUuid", this.networkUuid);
         tag.setBoolean("isConnected", this.isConnected);
+        tag.setBoolean("isHead", this.isHead);
         tag.setDouble("power", this.power);
         return tag;
     }
 
     @Override
     public void doSyncFrom(NBTTagCompound tag) {
-        this.isHead = tag.getBoolean("isHead");
         if (tag.hasUniqueId("networkUuid")) this.networkUuid = tag.getUniqueId("networkUuid");
         this.isConnected = tag.getBoolean("isConnected");
+        this.isHead = tag.getBoolean("isHead");
         this.power = tag.getDouble("power");
         if (this.world.isRemote) {
             IBlockState state = this.world.getBlockState(this.getPos());

@@ -7,17 +7,37 @@ import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SPacketUpdateTileEntity;
 import net.minecraft.server.management.PlayerChunkMapEntry;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nonnull;
 
-public abstract class TileEntityBase extends TileEntity implements ISyncable {
+public abstract class TileEntityBase extends TileEntity implements ISyncable, ITickable {
+
+    private long lastWorldTime = -1;
+    private int tickCounter = 0;
 
     @Override
     protected void setWorldCreate(@Nonnull final World worldIn) {
         setWorld(worldIn);
     }
+
+    @Override
+    public void update() {
+        if (this.world.isRemote) return;
+        long totalWorldTime = this.world.getTotalWorldTime();
+        if (this.lastWorldTime != totalWorldTime) {
+            this.lastWorldTime = totalWorldTime;
+            this.tickCounter = (this.tickCounter + 1) % 20;
+            if (this.tickCounter % 20 == 0) {
+                this.onTick();
+                this.sync();
+            }
+        }
+    }
+
+    protected abstract void onTick();
 
     @Nonnull
     @Override
